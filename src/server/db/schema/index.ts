@@ -1,3 +1,2 @@
-export * from "./mood.schema";
-
+export * from "./game.schema";
 export * from "./shared";

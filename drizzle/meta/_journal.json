@@ -8,6 +8,27 @@
       "when": 1741102088678,
       "tag": "0000_modern_swordsman",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1741179095399,
+      "tag": "0001_parched_mongu",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1741187996935,
+      "tag": "0002_great_machine_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1741188234925,
+      "tag": "0003_flimsy_luke_cage",
+      "breakpoints": true
     }
   ]
 }
