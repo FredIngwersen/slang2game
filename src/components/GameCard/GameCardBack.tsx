@@ -1,8 +1,9 @@
 import { CardHeader, CardTitle, CardContent } from "~/components/ui/card";
+import { GameSearchResult } from "~/components/GameSearch/actions";
 import { GameModel } from "~/server/db/schema";
 
 type GameCardBackProps = {
-  gameDetails: GameModel;
+  gameDetails: GameSearchResult | GameModel;
 };
 
 const GameCardBack = ({ gameDetails }: GameCardBackProps) => {

@@ -1,52 +1,53 @@
 import { db, schema } from "~/server/db";
 import { GameModel } from "~/server/db/schema";
 import { embedGameText } from "~/lib/utils/geminiEmbed";
+import { Game } from "~/server/api/routers/game";
+import { withCatchError } from "~/lib/utils/withCatchError";
 
-export const embedAndUpsert = async (gameDetails: any) => {
-  try {
-    // Check if the game already exists in the database
-    // const existingGame = await db.query.games.findFirst({
-    //   where: (games, { eq }) => eq(games.id, gameDetails.id),
-    // });
+export const embedAndUpsert = async (gameDetails: Game) => {
+  console.log(`Processing game ${gameDetails.id}: ${gameDetails.name}`);
 
-    // if (existingGame) {
-    //   console.log(
-    //     `Game ${gameDetails.id} (${gameDetails.name}) already exists in database, skipping...`,
-    //   );
-    //   return;
-    // }
+  // Generate embedding for the description_raw field
+  const [embedError, embedding] = await withCatchError(
+    embedGameText(
+      gameDetails.description_raw ?? "",
+      gameDetails.genres?.map((genre) => genre.name) ?? [],
+      gameDetails.tags?.map((tag) => tag.name) ?? [],
+    ),
+  );
 
-    console.log(`Processing game ${gameDetails.id}: ${gameDetails.name}`);
+  if (embedError) {
+    throw new Error(`Failed to generate embedding for game ${gameDetails.id}`, {
+      cause: embedError,
+    });
+  }
 
-    // Generate embedding for the description_raw field
-    const embedding = await embedGameText(gameDetails.description_raw ?? "");
+  // Extract tags, genres, and platforms from the game details
+  const tags = gameDetails.tags?.map((tag: any) => tag.name) || [];
+  const genres = gameDetails.genres?.map((genre: any) => genre.name) || [];
+  const platforms =
+    gameDetails.platforms?.map((platform: any) => platform.platform.name) || [];
 
-    // Extract tags, genres, and platforms from the game details
-    const tags = gameDetails.tags?.map((tag: any) => tag.name) || [];
-    const genres = gameDetails.genres?.map((genre: any) => genre.name) || [];
-    const platforms =
-      gameDetails.platforms?.map((platform: any) => platform.platform.name) ||
-      [];
+  // Combine all relevant game data for the embedding record
+  const gameData: GameModel = {
+    id: gameDetails.id ?? 0,
+    name: gameDetails.name ?? "",
+    description: gameDetails.description_raw ?? "",
+    tags: tags,
+    genres: genres,
+    platforms: platforms,
+    released: new Date(gameDetails.released ?? "").toISOString(),
+    backgroundImage: gameDetails.background_image ?? "",
+    embedding: embedding.values,
+    rating: gameDetails.rating ?? 0,
+    ratingTop: gameDetails.rating_top ?? 0,
+    ratingCount: gameDetails.ratings_count ?? 0,
+    playtime: gameDetails.playtime ?? 0,
+  };
 
-    // Combine all relevant game data for the embedding record
-    const gameData: GameModel = {
-      id: gameDetails.id ?? 0,
-      name: gameDetails.name ?? "",
-      description: gameDetails.description_raw ?? "",
-      tags: tags,
-      genres: genres,
-      platforms: platforms,
-      released: new Date(gameDetails.released ?? "").toISOString(),
-      backgroundImage: gameDetails.background_image ?? "",
-      embedding: embedding.values,
-      rating: gameDetails.rating ?? 0,
-      ratingTop: gameDetails.rating_top ?? 0,
-      ratingCount: gameDetails.ratings_count ?? 0,
-      playtime: gameDetails.playtime ?? 0,
-    };
-
-    // Insert or update the game embedding in the database
-    await db
+  // Insert or update the game embedding in the database
+  const [dbError] = await withCatchError(
+    db
       .insert(schema.games)
       .values(gameData)
       .onConflictDoUpdate({
@@ -64,12 +65,16 @@ export const embedAndUpsert = async (gameDetails: any) => {
           ratingCount: gameData.ratingCount,
           playtime: gameData.playtime,
         },
-      });
+      }),
+  );
 
-    console.log(
-      `Successfully processed game ${gameDetails.id}: ${gameDetails.name}`,
-    );
-  } catch (error) {
-    console.error(`Error processing game ${gameDetails.id}:`, error);
+  if (dbError) {
+    throw new Error(`Failed to upsert game ${gameDetails.id} to database`, {
+      cause: dbError,
+    });
   }
+
+  console.log(
+    `Successfully processed game ${gameDetails.id}: ${gameDetails.name}`,
+  );
 };

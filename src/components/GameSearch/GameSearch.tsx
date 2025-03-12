@@ -13,22 +13,9 @@ import {
   FormItem,
   FormMessage,
 } from "~/components/ui/form";
-import { searchGames } from "./actions";
-import { GameModel } from "~/server/db/schema";
-
-type Platform = {
-  id: string;
-  name: string;
-};
-
-const PLATFORMS: Platform[] = [
-  { id: "PC", name: "PC" },
-  { id: "PlayStation 5", name: "PlayStation 5" },
-  { id: "Xbox Series S/X", name: "Xbox Series S/X" },
-  { id: "Nintendo Switch", name: "Nintendo Switch" },
-  { id: "iOS", name: "iOS" },
-  { id: "Android", name: "Android" },
-];
+import { searchGames, GameSearchResults } from "./actions";
+import { PLATFORMS } from "~/lib/types/Rawg";
+import { withCatchError } from "~/lib/utils/withCatchError";
 
 // Define the form schema with Zod
 const searchFormSchema = z.object({
@@ -37,11 +24,10 @@ const searchFormSchema = z.object({
 });
 
 type SearchFormValues = z.infer<typeof searchFormSchema>;
-type SearchResult = Awaited<ReturnType<typeof searchGames>>;
 
 export function GameSearch() {
   const [isSearching, setIsSearching] = useState(false);
-  const [searchResults, setSearchResults] = useState<SearchResult>([]);
+  const [searchResults, setSearchResults] = useState<GameSearchResults>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [isSearched, setIsSearched] = useState(false);
 
@@ -58,19 +44,18 @@ export function GameSearch() {
     setIsSearching(true);
     setSearchError(null);
 
-    try {
-      const results = await searchGames(values.query, values.platforms);
+    const [error, results] = await withCatchError(
+      searchGames(values.query, values.platforms),
+      [Error],
+    );
+
+    if (error) {
+      setSearchError(error.message ?? "An unknown error occurred");
+    } else {
       setSearchResults(results);
       setIsSearched(true);
-      setIsSearching(false);
-    } catch (error) {
-      if (error instanceof Error) {
-        setSearchError(error.message);
-      } else {
-        setSearchError("An unknown error occurred");
-      }
-      setIsSearching(false);
     }
+    setIsSearching(false);
   };
 
   const togglePlatform = (platformId: string) => {
@@ -116,15 +101,15 @@ export function GameSearch() {
               <div className="flex flex-wrap gap-2">
                 {PLATFORMS.map((platform) => (
                   <Button
-                    key={platform.id}
+                    key={platform.name}
                     variant={
-                      form.watch("platforms").includes(platform.id)
+                      form.watch("platforms").includes(platform.name)
                         ? "default"
                         : "outline"
                     }
                     type="button"
                     size="sm"
-                    onClick={() => togglePlatform(platform.id)}
+                    onClick={() => togglePlatform(platform.name)}
                   >
                     {platform.name}
                   </Button>
@@ -169,25 +154,10 @@ export function GameSearch() {
           <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {searchResults.map((result) => {
               // Convert search result to GameModel type expected by GameCard
-              const game: GameModel = {
-                id: result.id,
-                name: result.name,
-                description: result.description,
-                backgroundImage: result.backgroundImage,
-                platforms: result.platforms || [],
-                genres: result.genres || [],
-                tags: result.tags || [],
-                released: result.released,
-                rating: result.rating,
-                ratingTop: 5,
-                ratingCount: 0,
-                playtime: 0,
-                embedding: [],
-              };
 
               return (
                 <div key={result.id} className="flex flex-col">
-                  <GameCard game={game} />
+                  <GameCard game={result} />
                 </div>
               );
             })}

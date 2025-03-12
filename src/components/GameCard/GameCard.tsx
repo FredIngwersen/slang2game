@@ -3,10 +3,11 @@ import { ComponentProps } from "react";
 import { cn } from "~/lib/utils";
 import GameCardFront from "~/components/GameCard/GameCardFront";
 import GameCardBack from "~/components/GameCard/GameCardBack";
+import { GameSearchResult } from "~/components/GameSearch/actions";
 import { GameModel } from "~/server/db/schema";
 
 type GameCardProps = {
-  game: GameModel;
+  game: GameSearchResult | GameModel;
 } & ComponentProps<typeof Card>;
 
 const GameCard = ({ game, ...props }: GameCardProps) => {
